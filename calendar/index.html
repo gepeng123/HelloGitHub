@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="万年历：公历、农历、二十四节气、干支纪年、传统节日查询，支持 1901-2099 年" />
+<title>万年历 · 农历 · 节气 · 节日</title>
+<style>
+  :root {
+    --red: #b03a2e;
+    --red-deep: #8c1f1f;
+    --gold: #c8a45d;
+    --ink: #3a3630;
+    --ink-light: #8a8478;
+    --paper: #fbf8f2;
+    --card: #ffffff;
+    --line: #ece5d8;
+    --green: #3d7a4f;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #fdf7e9, #f4eee1);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 26px 16px 40px;
+  }
+  .page { max-width: 1100px; margin: 0 auto; }
+
+  /* ===== 头部 ===== */
+  header { text-align: center; margin-bottom: 18px; }
+  .seal {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; margin-bottom: 6px;
+    background: var(--red); color: #fff; border-radius: 8px;
+    font-family: "STKaiti", "KaiTi", serif; font-size: 26px;
+    box-shadow: 0 4px 10px rgba(176, 58, 46, .35);
+  }
+  h1 {
+    font-family: "STKaiti", "KaiTi", "SimSun", serif;
+    font-size: 30px; letter-spacing: 12px; text-indent: 12px;
+    color: var(--red-deep); font-weight: 600;
+  }
+  .subtitle { margin-top: 6px; color: var(--ink-light); font-size: 13px; letter-spacing: 4px; text-indent: 4px; }
+
+  /* ===== 工具栏 ===== */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .nav-group { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .toolbar button {
+    min-width: 34px; height: 34px; padding: 0 10px;
+    border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink); font-size: 15px; cursor: pointer;
+    transition: all .15s;
+  }
+  .toolbar button:hover { border-color: var(--red); color: var(--red); background: #fdf5f0; }
+  .toolbar button.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; margin-left: 6px; }
+  .toolbar button.primary:hover { background: var(--red-deep); }
+  .ym { display: flex; align-items: center; gap: 4px; margin: 0 4px; }
+  .ym select {
+    height: 34px; padding: 0 6px; border: 1px solid var(--line); border-radius: 8px;
+    background: #fff; color: var(--ink); font-size: 15px; cursor: pointer;
+  }
+  .ym .unit { color: var(--ink-light); }
+  .today-brief { color: var(--ink-light); font-size: 13px; }
+  .today-brief b { color: var(--red); font-weight: 600; }
+
+  /* ===== 布局 ===== */
+  .layout { display: flex; gap: 18px; align-items: stretch; flex-wrap: wrap; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 6px 18px rgba(90, 70, 40, .06);
+  }
+  .calendar-card { flex: 1 1 560px; padding: 18px 18px 20px; }
+  .detail-card { flex: 0 0 300px; padding: 22px 20px; display: flex; flex-direction: column; }
+
+  /* ===== 月份标题 ===== */
+  .month-title { text-align: center; margin-bottom: 14px; }
+  .month-title .big {
+    font-family: "STKaiti", "KaiTi", serif;
+    font-size: 26px; color: var(--ink); letter-spacing: 2px;
+  }
+  .month-title .big b { color: var(--red-deep); }
+  .month-title .lunar-line { margin-top: 4px; font-size: 13px; color: var(--ink-light); letter-spacing: 2px; }
+
+  /* ===== 星期表头 ===== */
+  .week-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 8px; }
+  .week-header div { text-align: center; font-size: 13px; color: var(--ink-light); padding: 4px 0; letter-spacing: 2px; }
+  .week-header .weekend { color: var(--red); }
+
+  /* ===== 日期格子 ===== */
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cell {
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; min-height: 74px; border-radius: 10px; border: 1px solid transparent;
+    cursor: pointer; transition: background .15s, border-color .15s; user-select: none;
+  }
+  .cell:hover { background: #f9f1e7; }
+  .cell.dim { opacity: .32; }
+  .cell.today { border-color: var(--red); background: #fdf5f0; }
+  .cell.today .num {
+    background: var(--red); color: #fff; border-radius: 50%;
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+  }
+  .cell.selected { border-color: var(--gold); background: #fbf6ea; box-shadow: inset 0 0 0 1px var(--gold); }
+  .cell .num { font-size: 20px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+  .cell.weekend .num { color: var(--red); }
+  .cell.today .num { color: #fff !important; }
+  .cell .sub { font-size: 12px; color: var(--ink-light); line-height: 1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px; }
+  .cell .sub.fest { color: var(--red); font-weight: 600; }
+  .cell .sub.term { color: var(--green); }
+
+  /* ===== 详情面板 ===== */
+  .d-top { display: flex; align-items: center; gap: 14px; padding-bottom: 16px; border-bottom: 1px dashed var(--line); }
+  .d-num {
+    font-family: "STKaiti", "KaiTi", serif; font-size: 64px; line-height: 1;
+    color: var(--red-deep); min-width: 76px; text-align: center;
+  }
+  .d-col .d-date { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .d-col .d-week { font-size: 13px; color: var(--ink-light); letter-spacing: 2px; }
+  .d-block { margin-top: 16px; }
+  .d-block label {
+    display: inline-block; font-size: 12px; color: var(--gold); letter-spacing: 4px; text-indent: 4px;
+    margin-bottom: 8px; position: relative; padding-bottom: 4px;
+  }
+  .d-block label::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: var(--gold); opacity: .4; }
+  .d-lunar-main { font-family: "STKaiti", "KaiTi", serif; font-size: 24px; color: var(--ink); }
+  .d-lunar-year { margin-top: 6px; font-size: 14px; color: var(--ink-light); }
+  .gz-row { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; }
+  .gz-row span:first-child { color: var(--ink-light); }
+  .gz-row b { font-weight: 600; color: var(--ink); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag { padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+  .tag.red { background: #fdf0ed; color: var(--red); border: 1px solid #f0d3cc; }
+  .tag.green { background: #eef5ef; color: var(--green); border: 1px solid #d3e5d7; }
+  .tag.gold { background: #faf4e6; color: #9a7b3f; border: 1px solid #eadfc3; }
+  .d-empty { margin-top: 8px; font-size: 13px; color: var(--ink-light); }
+  .d-footer { margin-top: auto; padding-top: 18px; font-size: 12px; color: var(--ink-light); text-align: center; letter-spacing: 1px; }
+
+  footer.page-foot { margin-top: 22px; text-align: center; font-size: 12px; color: var(--ink-light); letter-spacing: 1px; }
+
+  @media (max-width: 640px) {
+    .today-brief { display: none; }
+    .calendar-card { padding: 12px 10px 14px; }
+    .cell { min-height: 58px; }
+    .cell .num { font-size: 17px; }
+    .cell .sub { font-size: 11px; }
+    .d-num { font-size: 52px; min-width: 62px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="seal">曆</div>
+    <h1>万年历</h1>
+    <div class="subtitle">公历 · 农历 · 节气 · 干支 · 节日</div>
+  </header>
+
+  <div class="toolbar">
+    <div class="nav-group">
+      <button id="prevYear" title="上一年">«</button>
+      <button id="prevMonth" title="上一月">‹</button>
+      <div class="ym">
+        <select id="yearSel"></select><span class="unit">年</span>
+        <select id="monthSel"></select><span class="unit">月</span>
+      </div>
+      <button id="nextMonth" title="下一月">›</button>
+      <button id="nextYear" title="下一年">»</button>
+      <button id="todayBtn" class="primary">今天</button>
+    </div>
+    <div id="todayBrief" class="today-brief"></div>
+  </div>
+
+  <main class="layout">
+    <section class="card calendar-card">
+      <div class="month-title">
+        <div class="big"><b id="mtY">2026</b> 年 <b id="mtM">1</b> 月</div>
+        <div class="lunar-line" id="mtLunar"></div>
+      </div>
+      <div class="week-header">
+        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div>
+        <div class="weekend">六</div><div class="weekend">日</div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </section>
+    <aside class="card detail-card" id="detail"></aside>
+  </main>
+
+  <footer class="page-foot">支持 1901 - 2099 年 · 农历与节气数据仅供查询参考</footer>
+</div>
+
+<script>
+/* ================= 基础数据 ================= */
+// 农历 1900-2100 年信息表（闰月大小、每月天数等）
+const lunarInfo = [
+  0x04bd8,0x04ae0,0x0a570,0x054d5,0x0d260,0x0d950,0x16554,0x056a0,0x09ad0,0x055d2,//1900-1909
+  0x04ae0,0x0a5b6,0x0a4d0,0x0d250,0x1d255,0x0b540,0x0d6a0,0x0ada2,0x095b0,0x14977,//1910-1919
+  0x04970,0x0a4b0,0x0b4b5,0x06a50,0x06d40,0x1ab54,0x02b60,0x09570,0x052f2,0x04970,//1920-1929
+  0x06566,0x0d4a0,0x0ea50,0x06e95,0x05ad0,0x02b60,0x186e3,0x092e0,0x1c8d7,0x0c950,//1930-1939
+  0x0d4a0,0x1d8a6,0x0b550,0x056a0,0x1a5b4,0x025d0,0x092d0,0x0d2b2,0x0a950,0x0b557,//1940-1949
+  0x06ca0,0x0b550,0x15355,0x04da0,0x0a5b0,0x14573,0x052b0,0x0a9a8,0x0e950,0x06aa0,//1950-1959
+  0x0aea6,0x0ab50,0x04b60,0x0aae4,0x0a570,0x05260,0x0f263,0x0d950,0x05b57,0x056a0,//1960-1969
+  0x096d0,0x04dd5,0x04ad0,0x0a4d0,0x0d4d4,0x0d250,0x0d558,0x0b540,0x0b6a0,0x195a6,//1970-1979
+  0x095b0,0x049b0,0x0a974,0x0a4b0,0x0b27a,0x06a50,0x06d40,0x0af46,0x0ab60,0x09570,//1980-1989
+  0x04af5,0x04970,0x064b0,0x074a3,0x0ea50,0x06b58,0x055c0,0x0ab60,0x096d5,0x092e0,//1990-1999
+  0x0c960,0x0d954,0x0d4a0,0x0da50,0x07552,0x056a0,0x0abb7,0x025d0,0x092d0,0x0cab5,//2000-2009
+  0x0a950,0x0b4a0,0x0baa4,0x0ad50,0x055d9,0x04ba0,0x0a5b0,0x15176,0x052b0,0x0a930,//2010-2019
+  0x07954,0x06aa0,0x0ad50,0x05b52,0x04b60,0x0a6e6,0x0a4e0,0x0d260,0x0ea65,0x0d530,//2020-2029
+  0x05aa0,0x076a3,0x096d0,0x04afb,0x04ad0,0x0a4d0,0x1d0b6,0x0d250,0x0d520,0x0dd45,//2030-2039
+  0x0b5a0,0x056d0,0x055b2,0x049b0,0x0a577,0x0a4b0,0x0aa50,0x1b255,0x06d20,0x0ada0,//2040-2049
+  0x14b63,0x09370,0x049f8,0x04970,0x064b0,0x168a6,0x0ea50,0x06b20,0x1a6c4,0x0aae0,//2050-2059
+  0x0a2e0,0x0d2e3,0x0c960,0x0d557,0x0d4a0,0x0da50,0x05d55,0x056a0,0x0a6d0,0x055d4,//2060-2069
+  0x052d0,0x0a9b8,0x0a950,0x0b4a0,0x0b6a6,0x0ad50,0x055a0,0x0aba4,0x0a5b0,0x052b0,//2070-2079
+  0x0b273,0x06930,0x07337,0x06aa0,0x0ad50,0x14b55,0x04b60,0x0a570,0x054e4,0x0d160,//2080-2089
+  0x0e968,0x0d520,0x0daa0,0x16aa6,0x056d0,0x04ae0,0x0a9d4,0x0a2d0,0x0d150,0x0f252,//2090-2099
+  0x0d520 //2100
+];
+
+const Gan = ['甲','乙','丙','丁','戊','己','庚','辛','壬','癸'];       // 天干
+const Zhi = ['子','丑','寅','卯','辰','巳','午','未','申','酉','戌','亥']; // 地支
+const Animals = ['鼠','牛','虎','兔','龙','蛇','马','羊','猴','鸡','狗','猪']; // 生肖
+const lunarMonths = ['正','二','三','四','五','六','七','八','九','十','冬','腊']; // 农历月名
+const weekNames = ['日','一','二','三','四','五','六'];
+const termNames = ['小寒','大寒','立春','雨水','惊蛰','春分','清明','谷雨','立夏','小满','芒种','夏至',
+                   '小暑','大暑','立秋','处暑','白露','秋分','寒露','霜降','立冬','小雪','大雪','冬至'];
+// 节气分钟数表（1900 年基准）
+const sTermInfo = [0,21208,42467,63836,85337,107014,128867,150921,173149,195551,218072,240693,
+                   263343,285989,308563,331033,353350,375494,397447,419210,440795,462224,483532,504758];
+
+// 公历节日
+const solarFest = { '1/1':'元旦','2/14':'情人节','3/8':'妇女节','3/12':'植树节','4/1':'愚人节',
+                    '5/1':'劳动节','5/4':'青年节','6/1':'儿童节','7/1':'建党节','8/1':'建军节',
+                    '9/10':'教师节','10/1':'国庆节','12/24':'平安夜','12/25':'圣诞节' };
+// 农历节日（农历月/日）
+const lunarFest = { '1/1':'春节','1/15':'元宵节','2/2':'龙抬头','3/3':'上巳节','5/5':'端午节',
+                    '7/7':'七夕节','7/15':'中元节','8/15':'中秋节','9/9':'重阳节','10/1':'寒衣节','12/8':'腊八节' };
+
+const MIN_YEAR = 1901, MAX_YEAR = 2099;
+
+/* ================= 农历核心算法 ================= */
+// 农历某年的总天数
+function lYearDays(y) {
+  let sum = 348;
+  for (let i = 0x8000; i > 0x8; i >>= 1) sum += (lunarInfo[y - 1900] & i) ? 1 : 0;
+  return sum + leapDays(y);
+}
+// 农历某年闰几月（0 表示不闰）
+function leapMonth(y) { return lunarInfo[y - 1900] & 0xf; }
+// 农历某年闰月天数
+function leapDays(y) { return leapMonth(y) ? ((lunarInfo[y - 1900] & 0x10000) ? 30 : 29) : 0; }
+// 农历某年某月天数（m: 1-12，不含闰月）
+function monthDays(y, m) { return (lunarInfo[y - 1900] & (0x10000 >> m)) ? 30 : 29; }
+
+// 公历转农历：y/m/d 为公历年月日
+function solar2lunar(y, m, d) {
+  let offset = Math.round((Date.UTC(y, m - 1, d) - Date.UTC(1900, 0, 31)) / 86400000);
+  let i, temp = 0;
+  for (i = 1900; i < 2101 && offset > 0; i++) { temp = lYearDays(i); offset -= temp; }
+  if (offset < 0) { offset += temp; i--; }
+  const ly = i;
+  const leap = leapMonth(ly);
+  let isLeap = false;
+  for (i = 1; i < 13 && offset > 0; i++) {
+    if (leap > 0 && i === leap + 1 && !isLeap) { --i; isLeap = true; temp = leapDays(ly); }
+    else { temp = monthDays(ly, i); }
+    if (isLeap && i === leap + 1) isLeap = false;
+    offset -= temp;
+  }
+  if (offset === 0 && leap > 0 && i === leap + 1) {
+    if (isLeap) isLeap = false; else { isLeap = true; --i; }
+  }
+  if (offset < 0) { offset += temp; --i; }
+  return { ly, lm: i, ld: offset + 1, isLeap };
+}
+
+// 农历日转中文：初一、十五、廿三……
+function toChinaDay(d) {
+  const tens = ['初','十','廿','三'];
+  const ones = ['一','二','三','四','五','六','七','八','九','十'];
+  if (d === 10) return '初十';
+  if (d === 20) return '二十';
+  if (d === 30) return '三十';
+  return tens[Math.floor(d / 10)] + ones[d % 10 - 1];
+}
+// 农历月名（含闰月标记）
+function lunarMonthLabel(lm, isLeap) { return (isLeap ? '闰' : '') + lunarMonths[lm - 1] + '月'; }
+
+/* ================= 节气 ================= */
+// 计算某年第 n 个节气的日（返回当月几号）
+function getTermDay(y, n) {
+  if (y < MIN_YEAR || y > MAX_YEAR) return -1;
+  const offDate = new Date(31556925974.7 * (y - 1900) + sTermInfo[n] * 60000 + Date.UTC(1900, 0, 6, 2, 5));
+  return offDate.getUTCDate();
+}
+// 节气缓存：年份 -> { '月/日': 节气名 }
+const termCache = {};
+function getTermMap(y) {
+  if (termCache[y]) return termCache[y];
+  const map = {};
+  for (let n = 0; n < 24; n++) {
+    const day = getTermDay(y, n);
+    if (day > 0) map[(Math.floor(n / 2) + 1) + '/' + day] = termNames[n];
+  }
+  termCache[y] = map;
+  return map;
+}
+
+/* ================= 干支 ================= */
+// 干支纪年（以立春为界）
+function gzYearOf(y, m, d) {
+  let gy = y;
+  const lichun = new Date(y, 1, getTermDay(y, 2));
+  if (new Date(y, m - 1, d) < lichun) gy = y - 1;
+  const idx = ((gy - 4) % 60 + 60) % 60;
+  return { year: gy, text: Gan[idx % 10] + Zhi[idx % 12], animal: Animals[idx % 12] };
+}
+// 干支纪月（以节气划分，寅月为正月）
+function gzMonthOf(y, m, d) {
+  let num = 11; // 默认子月（上年大雪之后）
+  for (let n = 22; n >= 0; n -= 2) {
+    const td = getTermDay(y, n);
+    if (td > 0 && new Date(y, Math.floor(n / 2), td) <= new Date(y, m - 1, d)) {
+      num = (((n - 2) / 2) % 12 + 12) % 12 + 1;
+      break;
+    }
+  }
+  const gzY = gzYearOf(y, m, d);
+  const stemBase = (((gzY.year - 4) % 10 % 5) + 5) % 5 * 2 + 2; // 甲己之年丙作首
+  const stem = (stemBase + num - 1) % 10;
+  const branch = (num + 1) % 12;
+  return Gan[stem] + Zhi[branch];
+}
+// 干支纪日（儒略日推算）
+function gzDayOf(y, m, d) {
+  const jdn = Math.floor(Date.UTC(y, m - 1, d) / 86400000) + 2440588;
+  const idx = ((jdn + 49) % 60 + 60) % 60;
+  return Gan[idx % 10] + Zhi[idx % 12];
+}
+
+/* ================= 单日综合信息 ================= */
+function dayInfo(y, m, d) {
+  const lunar = solar2lunar(y, m, d);
+  const term = getTermMap(y)[m + '/' + d] || '';
+  const festLunar = lunarFest[lunar.lm + '/' + lunar.ld] || '';
+  // 除夕：次日为正月初一
+  const t = new Date(y, m - 1, d + 1);
+  const lt = solar2lunar(t.getFullYear(), t.getMonth() + 1, t.getDate());
+  const isNewYearEve = lt.lm === 1 && lt.ld === 1 && !lt.isLeap;
+  const festSolar = solarFest[m + '/' + d] || '';
+
+  const festival = isNewYearEve ? '除夕' : (festLunar || festSolar);
+  let sub, subClass = '';
+  if (festival) { sub = festival; subClass = 'fest'; }
+  else if (term) { sub = term; subClass = 'term'; }
+  else sub = lunar.ld === 1 ? lunarMonthLabel(lunar.lm, lunar.isLeap) : toChinaDay(lunar.ld);
+
+  return { lunar, term, festival, sub, subClass,
+           gzYear: gzYearOf(y, m, d), gzMonth: gzMonthOf(y, m, d), gzDay: gzDayOf(y, m, d),
+           week: weekNames[new Date(y, m - 1, d).getDay()] };
+}
+
+/* ================= 页面渲染 ================= */
+const $ = id => document.getElementById(id);
+const today = new Date();
+let viewY = today.getFullYear(), viewM = today.getMonth() + 1;
+let sel = { y: viewY, m: viewM, d: today.getDate() };
+
+// 初始化下拉选项
+function initSelects() {
+  for (let y = MIN_YEAR; y <= MAX_YEAR; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y;
+    $('yearSel').appendChild(o);
+  }
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m;
+    $('monthSel').appendChild(o);
+  }
+  $('yearSel').value = viewY;
+  $('monthSel').value = viewM;
+}
+
+// 渲染月历网格
+function renderGrid() {
+  $('mtY').textContent = viewY;
+  $('mtM').textContent = viewM;
+  const midLunar = solar2lunar(viewY, viewM, 15);
+  const gz = gzYearOf(viewY, viewM, 15);
+  $('mtLunar').textContent = '农历' + gz.text + '年 · ' + gz.animal + ' · ' +
+    lunarMonthLabel(midLunar.lm, midLunar.isLeap) + toChinaDay(midLunar.ld);
+
+  const grid = $('grid');
+  grid.innerHTML = '';
+  const first = new Date(viewY, viewM - 1, 1);
+  const startOffset = (first.getDay() + 6) % 7; // 周一为一周开始
+  const startDate = new Date(viewY, viewM - 1, 1 - startOffset);
+
+  for (let i = 0; i < 42; i++) {
+    const cur = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+    const y = cur.getFullYear(), m = cur.getMonth() + 1, d = cur.getDate();
+    const info = dayInfo(y, m, d);
+    const cell = document.createElement('div');
+    cell.className = 'cell' +
+      (m !== viewM ? ' dim' : '') +
+      ((cur.getDay() === 0 || cur.getDay() === 6) ? ' weekend' : '') +
+      (y === today.getFullYear() && m === today.getMonth() + 1 && d === today.getDate() ? ' today' : '') +
+      (y === sel.y && m === sel.m && d === sel.d ? ' selected' : '');
+    cell.innerHTML = '<span class="num">' + d + '</span>' +
+      '<span class="sub ' + info.subClass + '">' + info.sub + '</span>';
+    cell.onclick = () => {
+      sel = { y, m, d };
+      if (m !== viewM || y !== viewY) { viewY = y; viewM = m; renderAll(); }
+      else renderAll();
+    };
+    grid.appendChild(cell);
+  }
+}
+
+// 渲染详情面板
+function renderDetail() {
+  const { y, m, d } = sel;
+  const info = dayInfo(y, m, d);
+  const tags = [];
+  if (info.festival) tags.push('<span class="tag red">' + info.festival + '</span>');
+  if (info.term) tags.push('<span class="tag green">' + info.term + '</span>');
+  if (info.lunar.ld === 1) tags.push('<span class="tag gold">' + lunarMonthLabel(info.lunar.lm, info.lunar.isLeap) + '初一</span>');
+
+  $('detail').innerHTML =
+    '<div class="d-top">' +
+      '<div class="d-num">' + d + '</div>' +
+      '<div class="d-col">' +
+        '<div class="d-date">' + y + '年' + m + '月' + d + '日</div>' +
+        '<div class="d-week">星期' + info.week + '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="d-block"><label>农历</label>' +
+      '<div class="d-lunar-main">' + lunarMonthLabel(info.lunar.lm, info.lunar.isLeap) + toChinaDay(info.lunar.ld) + '</div>' +
+      '<div class="d-lunar-year">' + info.gzYear.text + '年（' + info.gzYear.animal + '）</div>' +
+    '</div>' +
+    '<div class="d-block"><label>干支</label>' +
+      '<div class="gz-row"><span>年柱</span><b>' + info.gzYear.text + '年</b></div>' +
+      '<div class="gz-row"><span>月柱</span><b>' + info.gzMonth + '月</b></div>' +
+      '<div class="gz-row"><span>日柱</span><b>' + info.gzDay + '日</b></div>' +
+    '</div>' +
+    '<div class="d-block"><label>节日 / 节气</label>' +
+      (tags.length ? '<div class="tags">' + tags.join('') + '</div>'
+                   : '<div class="d-empty">这一天没有节日或节气</div>') +
+    '</div>' +
+    '<div class="d-footer">点击左侧日期查看详情</div>';
+}
+
+// 顶部"今天"简介
+function renderTodayBrief() {
+  const y = today.getFullYear(), m = today.getMonth() + 1, d = today.getDate();
+  const info = dayInfo(y, m, d);
+  $('todayBrief').innerHTML = '今天：<b>' + m + '月' + d + '日</b> 星期' + info.week +
+    ' · 农历' + lunarMonthLabel(info.lunar.lm, info.lunar.isLeap) + toChinaDay(info.lunar.ld) +
+    (info.festival ? ' · ' + info.festival : '');
+}
+
+function renderAll() {
+  $('yearSel').value = viewY;
+  $('monthSel').value = viewM;
+  renderGrid();
+  renderDetail();
+}
+
+/* ================= 交互 ================= */
+function shiftMonth(delta) {
+  let m = viewM + delta, y = viewY;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  if (y < MIN_YEAR || y > MAX_YEAR) return;
+  viewY = y; viewM = m;
+  renderAll();
+}
+function shiftYear(delta) {
+  const y = viewY + delta;
+  if (y < MIN_YEAR || y > MAX_YEAR) return;
+  viewY = y;
+  renderAll();
+}
+
+$('prevYear').onclick = () => shiftYear(-1);
+$('nextYear').onclick = () => shiftYear(1);
+$('prevMonth').onclick = () => shiftMonth(-1);
+$('nextMonth').onclick = () => shiftMonth(1);
+$('todayBtn').onclick = () => {
+  viewY = today.getFullYear(); viewM = today.getMonth() + 1;
+  sel = { y: viewY, m: viewM, d: today.getDate() };
+  renderAll();
+};
+$('yearSel').onchange = e => { viewY = +e.target.value; renderAll(); };
+$('monthSel').onchange = e => { viewM = +e.target.value; renderAll(); };
+// 键盘快捷键：← → 切月，↑ ↓ 切年，T 回今天
+document.addEventListener('keydown', e => {
+  if (['SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft') shiftMonth(-1);
+  else if (e.key === 'ArrowRight') shiftMonth(1);
+  else if (e.key === 'ArrowUp') shiftYear(-1);
+  else if (e.key === 'ArrowDown') shiftYear(1);
+  else if (e.key.toLowerCase() === 't') $('todayBtn').click();
+});
+
+/* 启动 */
+initSelects();
+renderTodayBrief();
+renderAll();
+</script>
+</body>
+</html>
